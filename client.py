@@ -11,4 +11,7 @@ print(msg)
 username = input(">>> ")
 client.send(username.encode())
 
+response = client.recv(1024).decode()
+print(response)
+
 client.close()
