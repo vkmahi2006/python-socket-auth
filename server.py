@@ -1,5 +1,6 @@
 import socket 
 import threading
+import os
 
 HOST = '127.0.0.1'
 PORT = 12345 
@@ -17,10 +18,31 @@ user_data={
 
 }
 
+def get_user_file(username):
+    return f"{username}.txt"
+
+def load_user_data(username):
+    filename = get_user_file(username)
+    if os.path.exists(filename):
+        with open(filename , "r") as f :
+            user_data[username] = [line.strip() for line in f.readlines()] 
+    else:
+        user_data[username] = []
+
+def save_user_data(username):
+        filename = get_user_file(username)
+        with open(filename , "w") as f :
+            for item in user_data[username] : 
+                f.write(item + "\n")
+
+#-----------------------------------------------------------
+
+
 def handle_add(client_socket , username):
     client_socket.send(b"what would u like to add? ")
     item = client_socket.recv(1024).decode().strip()
     user_data[username].append(item)
+    save_user_data(username)
     client_socket.send(b"item add seccessfully\n")
     print(f"[{username}] Added item: {item}")
 
@@ -37,12 +59,13 @@ def handle_delete(client_socket , username):
     if not items : 
         client_socket.send(b"no items to delete.\n")
         return
+    response = "\n".join(f"{idx+1}. {item}" for idx, item in enumerate(items))
+    client_socket.send(response.encode() + b"\nEnter the number of the item to delete: ")
     try:
         choice = int(client_socket.recv(1024).decode().strip())
-        response = "\n".join(f"{idx+1}. {item}" for idx, item in enumerate(items))
-        client_socket.send(response.encode() + b"\nEnter the number of the item to delete: ")
         if 1 <= choice <= len(items):
             removed = items.pop(choice - 1)
+            save_user_data(username)
             client_socket.send(f"Item '{removed}' deleted successfully.\n".encode())
             print(f"[{username}] Deleted item: {removed}")
         else:
@@ -63,12 +86,14 @@ def handle_edit(client_socket , username):
             new_value = client_socket.recv(1024).decode().strip()
             old_value = items[choice - 1]
             items[choice - 1] = new_value
+            save_user_data(username)
             client_socket.send(b"value update seccessfully.\n")
             print(f"[{username}] Edited item: '{old_value}' to '{new_value}'")
         else:
             client_socket.send(b"invalid choice,\n")
     except ValueError:
         client_socket.send(b"invalid input\n")
+#--------------------------------------------------------------------------------
 
 def authenticate(client_socket):
     client_socket.send(b"enter your username:" )
@@ -78,6 +103,7 @@ def authenticate(client_socket):
     password = client_socket.recv(1024).decode().strip()
 
     if username in users and users[username] == password:
+        load_user_data(username)
         client_socket.send(b"Authentication successful!\n")
         print(f"[AUTH] User '{username}' authenticated successfully.")
         return True, username
