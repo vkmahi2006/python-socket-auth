@@ -10,6 +10,66 @@ users = {
     "reza" : "pass"
 }
 
+user_data={
+    "ali" : [] ,
+    "sara" : [] ,
+    "reza" : []
+
+}
+
+def handle_add(client_socket , username):
+    client_socket.send(b"what would u like to add? ")
+    item = client_socket.recv(1024).decode().strip()
+    user_data[username].append(item)
+    client_socket.send(b"item add seccessfully\n")
+    print(f"[{username}] Added item: {item}")
+
+def handle_get(client_socket , username):
+    items = user_data.get(username , [])
+    if not items : 
+        client_socket.send(b"no items found\n")
+    else:
+        response = "\n".join(f"{idx+1}. {item}" for idx, item in enumerate(items))
+        client_socket.send(response.encode() + b"\n")
+
+def handle_delete(client_socket , username):
+    items = user_data.get(username , [])
+    if not items : 
+        client_socket.send(b"no items to delete.\n")
+        return
+    try:
+        choice = int(client_socket.recv(1024).decode().strip())
+        response = "\n".join(f"{idx+1}. {item}" for idx, item in enumerate(items))
+        client_socket.send(response.encode() + b"\nEnter the number of the item to delete: ")
+        if 1 <= choice <= len(items):
+            removed = items.pop(choice - 1)
+            client_socket.send(f"Item '{removed}' deleted successfully.\n".encode())
+            print(f"[{username}] Deleted item: {removed}")
+        else:
+            client_socket.send(b"Invalid choice.\n")
+    except ValueError:
+        client_socket.send(b"invalid input\n")
+
+def handle_edit(client_socket , username):
+    items = user_data.get(username , [])
+    if not items :
+        client_socket.send(b"no items to edit.\n")
+        return
+    client_socket.send(b"enter the number of item to edit.\n")
+    try:
+        choice = int(client_socket.recv(1024).decode().strip())
+        if 1 <= choice <= len(items) : 
+            client_socket.send(b"enter the new value.\n")
+            new_value = client_socket.recv(1024).decode().strip()
+            old_value = items[choice - 1]
+            items[choice - 1] = new_value
+            client_socket.send(b"value update seccessfully.\n")
+            print(f"[{username}] Edited item: '{old_value}' to '{new_value}'")
+        else:
+            client_socket.send(b"invalid choice,\n")
+    except ValueError:
+        client_socket.send(b"invalid input\n")
+
 def authenticate(client_socket):
     client_socket.send(b"enter your username:" )
     username = client_socket.recv(1024).decode().strip()
@@ -46,14 +106,27 @@ def handle_client(client_socket , addr):
         if command == "quit":
             client_socket.send(b"goodbye\n")
             break
+    
         print(f"[{username}@{addr}] Command received: {command}")
-        client_socket.send(b"Command received.\n")
+
+        if command == "add" :
+            handle_add(client_socket , username)
+
+        if command == "get" : 
+            handle_get(client_socket , username)
+
+        if command == "delete" :
+            handle_delete(client_socket , username)
+        
+        if command == "edit" : 
+            handle_edit(client_socket , username)
+
+
+        
     client_socket.close()
     print(f"[DISCONNECTED] {addr} disconnected.")
 
         
-
-
 server = socket.socket(socket.AF_INET , socket.SOCK_STREAM )
 server.bind((HOST,PORT))
 server.listen()
