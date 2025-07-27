@@ -78,7 +78,8 @@ def handle_edit(client_socket , username):
     if not items :
         client_socket.send(b"no items to edit.\n")
         return
-    client_socket.send(b"enter the number of item to edit.\n")
+    response = "\n".join(f"{idx+1}. {item}" for idx, item in enumerate(items))
+    client_socket.send(response.encode() + b"\n enter the number of item to edit.\n")
     try:
         choice = int(client_socket.recv(1024).decode().strip())
         if 1 <= choice <= len(items) : 

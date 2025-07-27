@@ -33,7 +33,7 @@ def main():
 
     while True:  
         prompt = recv_full_msg(client_socket)
-        print(prompt , end = '')
+        #print(prompt , end = '')
         command = input("\nEnter command (add/edit/get/delete/quit): ")
         client_socket.send(command.encode())
 
